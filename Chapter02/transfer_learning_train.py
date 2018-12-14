@@ -31,7 +31,7 @@ from keras import optimizers
 from keras.callbacks import EarlyStopping, ModelCheckpoint, CSVLogger, Callback
 from keras.applications.resnet50 import preprocess_input
 import h5py
-
+import argparse
 
 
 def get_im_cv2(path,dim=224):
@@ -48,7 +48,7 @@ def pre_process(img):
    
 # Function to build X, y in numpy format based on the train/validation datasets
 def read_data(class_folders,path,num_class,dim,train_val='train'):
-    print train_val
+    print(train_val)
     train_X,train_y = [],[] 
     for c in class_folders:
         path_class = path + str(train_val) + '/' + str(c)
@@ -73,7 +73,7 @@ def inception_pseudo(dim=224,freeze_layers=30,full_freeze='N'):
     model_final = Model(input = model.input,outputs=out)
     if full_freeze != 'N':
         for layer in model.layers[0:freeze_layers]:
-       layer.trainable = False
+            layer.trainable = False
     return model_final
 
 # ResNet50 Model for transfer Learning 
@@ -89,7 +89,7 @@ def resnet_pseudo(dim=224,freeze_layers=10,full_freeze='N'):
     model_final = Model(input = model.input,outputs=out)
     if full_freeze != 'N':
         for layer in model.layers[0:freeze_layers]:
-       layer.trainable = False
+            layer.trainable = False
     return model_final
 
 # VGG16 Model for transfer Learning 
@@ -106,7 +106,7 @@ def VGG16_pseudo(dim=224,freeze_layers=10,full_freeze='N'):
     model_final = Model(input = model.input,outputs=out)
     if full_freeze != 'N':
         for layer in model.layers[0:freeze_layers]:
-       layer.trainable = False
+            layer.trainable = False
     return model_final
 
 
@@ -148,7 +148,7 @@ def train_model(train_X,train_y,n_fold=5,batch_size=16,dim=224,lr=1e-5,model='Re
              CSVLogger('keras-5fold-run-01-v1-epochs_ib.log', separator=',', append=False),reduce_lr,
                 ModelCheckpoint(
                         'kera1-5fold-run-01-v1-fold-' + str('%02d' % (k + 1)) + '-run-' + str('%02d' % (1 + 1)) + '.check',
-                        monitor='val_loss', mode='min', # mode must be set to max or Keras will be confused
+                        monitor='val_loss', mode='min',
                         save_best_only=True,
                         verbose=1)
             ]
@@ -173,7 +173,7 @@ def train_model(train_X,train_y,n_fold=5,batch_size=16,dim=224,lr=1e-5,model='Re
 def inference_validation(test_X,test_y,model_save_dest,n_class=5,folds=5):
     pred = np.zeros((len(test_X),n_class))
 
-    for k in xrange(1,folds + 1):
+    for k in range(1,folds + 1):
         model = keras.models.load_model(model_save_dest[k])
         pred = pred + model.predict(test_X)
     pred = pred/(1.0*folds) 
@@ -186,22 +186,23 @@ def inference_validation(test_X,test_y,model_save_dest,n_class=5,folds=5):
     
 if __name__ == "__main__":
     start_time = time.time()
-    path = '/home/santanu/Downloads/Diabetic Retinopathy/New/'
+    path = '/media/santanu/9eb9b6dc-b380-486e-b4fd-c424a325b976/book AI/Diabetic Retinopathy/New/'
     class_folders = ['0','1','2','3','4']
     num_class = len(class_folders)
     dim = 224
     lr = 1e-5
-    print 'Starting time:',start_time
+    print('Starting time:',start_time)
+    print("Starting Data processing")
     train_X,train_y = read_data(class_folders,path,num_class,dim,train_val='train')
     model_save_dest = train_model(train_X,train_y,n_fold=5,batch_size=16,dim=224,lr=1e-5,model='InceptionV3')
     #model_save_dest = {1:'InceptionV3__1'} 
     test_X,test_y = read_data(class_folders,path,num_class,dim,train_val='validation')
     pred_class,accuracy,kappa = inference_validation(test_X,test_y,model_save_dest,n_class=5,folds=5)
     np.save(path + "dict_model",model_save_dest)
-    print "-----------------------------------------------------"
-    print "Kappa score:", kappa
-    print "accuracy:", accuracy 
-    print "End of training"
-    print "-----------------------------------------------------"        
+    print("-----------------------------------------------------")
+    print("Kappa score:", kappa)
+    print("accuracy:", accuracy) 
+    print("End of training")
+    print("-----------------------------------------------------")
     
     

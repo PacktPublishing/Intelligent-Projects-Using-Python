@@ -88,7 +88,8 @@ class TransferLearning:
 				img = self.get_im_cv2(path_class + '/' + f)
 				img = self.pre_process(img)
 				train_X.append(img)
-				train_y.append(int(c))
+				label = int(c.split('class')[1])
+				train_y.append(int(label))
 		train_y = keras.utils.np_utils.to_categorical(np.array(train_y),num_class) 
 		return np.array(train_X),train_y
 		

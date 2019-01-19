@@ -53,6 +53,7 @@ def main(path,dim,model_save_dest,outdir,n_class):
     out = pd.DataFrame()
     out['id'] = test_files
     out['class'] = pred_class
+    out['class'] = out['class'].apply(lambda x:'class' + str(x))
     out.to_csv(outdir + "results.csv",index=False)
 
 if __name__ == '__main__':

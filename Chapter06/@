@@ -44,7 +44,8 @@ class recommender:
 
            if self.user_info_file != None:
                self.user_info_df = pd.read_csv(self.user_info_file,sep='|',header=None)
-               self.user_info_df.columns=['userid','age','gender','occupation','zipcode']
+               self.user_info_df.columns = ['userid','age','gender','occupation','zipcode']
+               self.user_info_df = pd.read_csv(self.user_info_file,sep='|',columns=['userid','age','gender','occupation','zipcode'])
 
            if self.movie_info_file != None:
                self.movie_info_df = pd.read_csv(self.movie_info_file,sep='|',encoding='latin-1',header=None)
@@ -158,6 +159,7 @@ class recommender:
                 # Display the running step 
                 if epoch % self.display_step == 0:
                     print("Epoch:", '%04d' % (epoch+1))
+                    print(self.outdir)
                     self.saver.save(sess,os.path.join(self.outdir,'model'), global_step=epoch)
            # Do the prediction for all users all items irrespective of whether they have been rated
             self.logits_pred = tf.reshape(self.x_,[self.users,self.num_movies,self.num_ranks])
@@ -177,14 +179,14 @@ class recommender:
     def inference(self):
         
         self.df_result = self.test_df.merge(self.train_df,on=['userid','movieid'])
+        self.df_result.to_csv(self.outdir + 'test_results.csv',index=False)
         # in order to get the original ids we just need to add  1 
         self.df_result['userid'] = self.df_result['userid'] + 1 
         self.df_result['movieid'] = self.df_result['movieid'] + 1 
         if self.user_info_file != None:
-            self.df_result = self.df_result.merge(self.user_info_df,on=['userid'])
+            self.df_result.merge(self.df_user_file,on=['userid'])
         if self.movie_info_file != None:
-            self.df_result = self.df_result.merge(self.movie_info_df,on=['movieid'])
-        self.df_result.to_csv(self.outdir + 'test_results.csv',index=False)
+            self.df_result.merge(self.df_movie_file,on=['movieid'])
 
 
         print(f'output written to {self.outdir}test_results.csv')

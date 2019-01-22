@@ -5,22 +5,16 @@
 import numpy as np
 import pandas as pd
 import argparse
-from sklearn.externals import joblib
 
-
-#path = '/home/santanu/Downloads/RBM Recommender/ml-100k/'
-#infile = 'u.data'
-#infile_path = path + infile
+'''
+Ratings file preprocessing script to create training and hold out test datasets
+'''
 
 def process_file(infile_path):
     infile = pd.read_csv(infile_path,sep='\t',header=None)
     infile.columns = ['userId','movieId','rating','timestamp']
     users = list(np.unique(infile.userId.values))
     movies = list(np.unique(infile.movieId.values))
-    movies_dict,movies_inverse_dict = {},{}
-    for i in range(len(movies)):
-        movies_dict[movies[i]] = i
-        movies_inverse_dict[i] = movies[i]
 
     test_data = []
     ratings_matrix = np.zeros([len(users),len(movies),5])
@@ -29,7 +23,7 @@ def process_file(infile_path):
     for i in range(len(infile)):
         rec = infile[i:i+1]
         user_index = int(rec['userId']-1)
-        movie_index = movies_dict[int(rec['movieId'])]
+        movie_index = int(rec['movieId']-1)
         rating_index = int(rec['rating']-1)
         if np.random.uniform(0,1) < 0.2 :
             test_data.append([user_index,movie_index,int(rec['rating'])])
@@ -43,10 +37,6 @@ def process_file(infile_path):
 
     np.save(path + 'train_data',ratings_matrix)
     np.save(path + 'test_data',np.array(test_data))
-    joblib.dump(movies_dict,path + 'movies_dict.pkl')
-    joblib.dump(movies_inverse_dict,path + 'movies_inverse_dict.pkl')
-    print(movies_dict)
-    print(movies_inverse_dict)
 
 
 if __name__ == '__main__':

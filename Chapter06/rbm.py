@@ -3,45 +3,50 @@ import pandas as pd
 import tensorflow as tf
 import sys
 import os
-print tf.__version__
+print(tf.__version__)
+import fire
+from elapsedtimer import ElapsedTimer
 
 class recommender:
     
-    def __init__(self,infile):
-           
-        self.train_file = '/home/santanu/Downloads/RBM Recommender/ml-100k/train_data.npy'
-        self.data = np.load(infile)
+    def __init__(self,mode,train_file,outdir,test_file=None,
+                batch_size=32,epochs=500,
+                learning_rate=1e-3,num_hidden=50,
+                display_step=5):
 
-        if sys.argv[1] == 'train':
-           self.train_file = infile
-           self.data = np.load(infile)
-        else:
-           #elf.test_file = infile
-           self.data = np.load(infile)
-           self.user_index = list(self.data[:,0]) 
-           self.movie_index = list(self.data[:,1])
-           self.rating_index = list(self.data[:,2])   
+
+        self.mode = mode
+        self.train_file = train_file
+        self.outdir = outdir          
+        self.test_file = test_file
+        self.batch_size = batch_size
+        self.learning_rate = learning_rate
+        self.num_hidden = num_hidden
+        self.epochs = epochs
+        self.display_step = display_step
+
+    
+    def read_data(self):
+        
+        if self.mode  == 'train':
            self.train_data = np.load(self.train_file)
-           self.test_data =  self.train_data[self.user_index,:,:]
-            
+           self.num_ranks = self.train_data.shape[2]
+           self.num_movies = self.train_data.shape[1]
+           self.users = self.train_data.shape[0]
+                
+        else:
+           self.train_df = pd.read_csv(self.train_file)
+           self.test_data  = np.load(self.test_file)
+           self.test_df = pd.DataFrame(self.test_data,columns=['userid','movieid','rating'])
+           
+         
              
 
-        #self.data = np.load(infile) 
-        self.ranks = 5
-        self.batch_size = 32
-        self.epochs = 500
-        self.learning_rate = 1e-4
-        self.users = self.train_data.shape[0]
-        self.num_hidden = 500
-        self.num_movies = self.train_data.shape[1]
-        self.num_ranks = 5
-	self.display_step = 1
-        self.path_save = sys.argv[3]
     
     def next_batch(self):
         while True:
-            ix = np.random.choice(np.arange(self.data.shape[0]),self.batch_size)
-            train_X  = self.data[ix,:,:]   
+            ix = np.random.choice(np.arange(self.train_data.shape[0]),self.batch_size)
+            train_X  = self.train_data[ix,:,:]   
             yield train_X
         
         
@@ -64,7 +69,7 @@ class recommender:
             sampled_logits = tf.multinomial(logits,1)             
             sampled_logits = tf.one_hot(sampled_logits,depth = 5)
             logits = tf.reshape(logits,[-1,self.num_movies*self.num_ranks])
-            print logits
+            print(logits)
             return logits  
     
                       
@@ -110,27 +115,27 @@ class recommender:
 # TensorFlow graph execution
 
         with tf.Session() as sess:
-            saver = tf.train.Saver(max_to_keep=100,write_version=1)
+            self.saver = tf.train.Saver()
             #saver = tf.train.Saver(write_version=tf.train.SaverDef.V2)  
             # Initialize the variables of the Model
             init = tf.global_variables_initializer()
             sess.run(init)
             
-            total_batches = self.data.shape[0]//self.batch_size
+            total_batches = self.train_data.shape[0]//self.batch_size
             batch_gen = self.next_batch()
             # Start the training 
             for epoch in range(self.epochs):
                 if epoch < 150:
-                    k = 2
+                    self.k = 2
     
                 if (epoch > 150) & (epoch < 250):
-                    k = 3
+                    self.k = 3
                     
                 if (epoch > 250) & (epoch < 350):
-                    k = 5
+                    self.k = 5
     
                 if (epoch > 350) & (epoch < 500):
-                    k = 9
+                    self.k = 9
                 
                     # Loop over all batches
                 for i in range(total_batches):
@@ -142,69 +147,40 @@ class recommender:
                 # Display the running step 
                 if epoch % self.display_step == 0:
                     print("Epoch:", '%04d' % (epoch+1))
-                    saver.save(sess, os.path.join(self.path_save,'model'), global_step=epoch)    
+                    print(self.outdir)
+                    self.saver.save(sess,os.path.join(self.outdir,'model'), global_step=epoch)
+           # Do the prediction for all users all items irrespective of whether they have been rated
+            self.logits_pred = tf.reshape(self.x_,[self.users,self.num_movies,self.num_ranks])
+            self.probs     = tf.nn.softmax(self.logits_pred,axis=2)
+            out = sess.run(self.probs,feed_dict={self.x:self.train_data})
+            recs = []
+            for i in range(self.users):
+                for j in range(self.num_movies):
+                    rec = [i,j,np.argmax(out[i,j,:]) +1]
+                    recs.append(rec)
+            recs = np.array(recs)
+            df_pred = pd.DataFrame(recs,columns=['userid','movieid','predicted_rating'])
+            df_pred.to_csv(self.outdir + 'pred_all_recs.csv',index=False)
                           
-	print("RBM training Completed !") 
+            print("RBM training Completed !") 
 
-
-
-    def _inference(self):
+    def inference(self):
         
-	self.model_path = sys.argv[3]
-               
-	#self.test_data = self.data
-        self.__network()
-        sess = tf.Session()
-
-        saver = tf.train.Saver(tf.all_variables(), reshape=True)
-	saver.restore(sess,self.model_path)  
-        x_ = tf.matmul(self.h,tf.transpose(self.W)) + self.b_v
-        #print x_
-        logits = tf.reshape(x_,[-1,self.num_ranks])   
-       # print logits
-        logits = tf.argmax(logits,axis=-1)
-       # print logits
-        logits = tf.reshape(logits,[-1,self.num_movies])
-        out = sess.run(logits,feed_dict={self.x:self.test_data})
-        ratings_pred = []
-        i = 0  
-        for x in self.movie_index:
-            pred = out[i,x] + 1
-            ratings_pred.append(pred) 
-            i+=1 
-         
-        ratings_pred = np.array(ratings_pred) 
-        ratings_pred = np.reshape(ratings_pred,(-1,1)) 
-        print ratings_pred.shape
-        print self.data.shape  
-        out = np.hstack((self.data,ratings_pred))
-        out = pd.DataFrame(out)
-        print out 
-        out.columns=['User','Movie','Actual Rating','Predicted Rating']
-        return out 
- 
-        
-              
-
-
-    
-if __name__ == '__main__':
-
-    if sys.argv[1] == 'train':
-  
-        infile = sys.argv[2]
-        model = recommender(infile)
-        model._train()
-
-    if sys.argv[1] == 'test':
-        
-        infile = sys.argv[2]
-        
-        model = recommender(infile) 
-        out = model._inference()
-        out.to_csv('/home/santanu/Downloads/RBM Recommender/results.csv') 
+        self.df_result = self.test_df.merge(self.train_df,on=['userid','movieid'])
+        self.df_result.to_csv(self.outdir + 'test_results.csv',index=False)
+        print(f'output written to {self.outdir}test_results.csv')
+        test_rmse = (np.mean((self.df_result['rating'].values - self.df_result['predicted_rating'].values)**2))**0.5
+        print(f'test RMSE : {test_rmse}')
 
        
-         
+    def main_process(self):
+        self.read_data()
 
-	
+        if self.mode == 'train':
+            self._train()
+        else:
+            self.inference()
+
+if __name__ == '__main__':
+    with ElapsedTimer('process RBM'):
+        fire.Fire(recommender)

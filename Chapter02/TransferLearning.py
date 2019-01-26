@@ -52,6 +52,7 @@ class TransferLearning:
 		parser.add_argument('--folds',type=int,help='num of cross validation folds',default=5)
 		parser.add_argument('--outdir',help='output directory')
 		
+		
 		args = parser.parse_args()
 		self.path = args.path
 		self.class_folders = json.loads(args.class_folders)
@@ -185,12 +186,12 @@ class TransferLearning:
 								'kera1-5fold-run-01-v1-fold-' + str('%02d' % (k + 1)) + '-run-' + str('%02d' % (1 + 1)) + '.check',
 								monitor='val_loss', mode='min',
 								save_best_only=True,
-								verbose=1)
-					]
-			
+								verbose=1)]
+								
 			model_final.fit_generator(datagen.flow(X_train,y_train, batch_size=batch_size),
-					steps_per_epoch=X_train.shape[0]/batch_size,epochs=epochs,verbose=1,
-					validation_data=(X_test,y_test),callbacks=callbacks)
+			steps_per_epoch=X_train.shape[0]/batch_size,epochs=epochs,verbose=1,
+			validation_data=(X_test,y_test),callbacks=callbacks,
+                                          class_weight={0:0.012,1:0.12,2:0.058,3:0.36,4:0.43})
 		 
 			model_name = 'kera1-5fold-run-01-v1-fold-' + str('%02d' % (k + 1)) + '-run-' + str('%02d' % (1 + 1)) + '.check'
 			del model_final

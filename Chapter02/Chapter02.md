@@ -1,4 +1,4 @@
-###Chapter02: Transfer Learning 
+### Chapter02: Transfer Learning 
 
 Transfer learning is the process of transferring the knowledge gained in one task in a
 specific domain to a related task in a similar domain. In the deep learning paradigm,
@@ -11,9 +11,10 @@ this chapter, we will use transfer learning to solve a healthcare problem.
 
 
 ### Goal 
-[x] To leverage transfer learning in solving real world problems
-[x] Look at the achitecture of Standard CNN architectures that can be used for Transfer Learning
-[x] Be comfortable on various facets of performing Transfer learning 
+
+- [x] To leverage transfer learning in solving real world problems
+- [x] Look at the achitecture of Standard CNN architectures that can be used for Transfer Learning
+- [x] Be comfortable on various facets of performing Transfer learning 
 
 ###Dataset Link
 [Data] (https://www.kaggle.com/c/classroom-diabetic-retinopathy-detection-competition/data)
@@ -48,7 +49,7 @@ python TransferLearning_reg.py --path '/media/santanu/9eb9b6dc-b380-486e-b4fd-c4
 
 ```
 
-##These are sample commands and need to be changed accordingly based on data repositories,output directory,etc
+### These are sample commands and need to be changed accordingly based on data repositories,output directory,etc
 
 
 

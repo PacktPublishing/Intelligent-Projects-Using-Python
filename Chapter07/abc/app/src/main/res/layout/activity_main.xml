@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity"
+    tools:layout_editor_absoluteY="81dp">
+
+
+    <TextView
+        android:id="@+id/desc"
+        android:layout_width="100dp"
+        android:layout_height="26dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginLeft="44dp"
+        android:layout_marginRight="8dp"
+        android:layout_marginStart="44dp"
+        android:layout_marginTop="36dp"
+        android:text="Movie Review"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.254"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:ignore="HardcodedText" />
+
+    <EditText
+        android:id="@+id/Review"
+        android:layout_width="319dp"
+        android:layout_height="191dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginLeft="8dp"
+        android:layout_marginRight="8dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="24dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/desc" />
+
+    <RatingBar
+        android:id="@+id/ratingBar"
+        android:layout_width="240dp"
+        android:layout_height="49dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginLeft="52dp"
+        android:layout_marginRight="8dp"
+        android:layout_marginStart="52dp"
+        android:layout_marginTop="28dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.238"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/score"
+        tools:ignore="MissingConstraints" />
+
+    <TextView
+        android:id="@+id/score"
+        android:layout_width="125dp"
+        android:layout_height="39dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginLeft="96dp"
+        android:layout_marginRight="8dp"
+        android:layout_marginStart="96dp"
+        android:layout_marginTop="32dp"
+        android:ems="10"
+        android:inputType="numberDecimal"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.135"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/submit" />
+
+    <Button
+        android:id="@+id/submit"
+        android:layout_width="wrap_content"
+        android:layout_height="35dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginLeft="136dp"
+        android:layout_marginRight="8dp"
+        android:layout_marginStart="136dp"
+        android:layout_marginTop="24dp"
+        android:text="SUBMIT"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/Review" />
+
+
+</android.support.constraint.ConstraintLayout>

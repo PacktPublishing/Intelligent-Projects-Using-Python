@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Jun 17 22:36:00 2018
-
 @author: santanu
 """
-
 import numpy as np
 import pandas as pd
 import os
@@ -12,10 +10,12 @@ import re
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
 import pickle
+import fire 
+from elapsedtimer import ElapsedTimer
 
 
 
-path = '/home/santanu/Downloads/Mobile_App/aclImdb/'
+#path = '/home/santanu/Downloads/Mobile_App/aclImdb/'
 
 # Function to clean the text and convert it into lower case    
 def text_clean(text):
@@ -67,7 +67,7 @@ def process_train(path):
     print ('records_processed',reviews_count)
     return df
     
-if __name__ == '__main__':
+def process_main(path):
     df = process_train(path)
     # We will tokenize the text for the most common 50000 words.
     max_fatures = 50000
@@ -105,6 +105,13 @@ if __name__ == '__main__':
     # saving the tokenizer oject for inference
     with open(path + 'tokenizer.pickle', 'wb') as handle:
         pickle.dump(tokenizer, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+if __name__ == '__main__':
+    with ElapsedTimer('Process'):
+        fire.Fire(process_main)
+
+
+
 
 
 

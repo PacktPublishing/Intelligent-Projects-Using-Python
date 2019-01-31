@@ -1,4 +1,4 @@
-#-*- coding: utf-8 -*-
+#o-*- coding: utf-8 -*-
 __author__ = "Santanu Pattanayak"
 
 import tensorflow as tf
@@ -11,50 +11,73 @@ import time
 import cv2
 from keras.preprocessing import sequence
 import matplotlib.pyplot as plt
-#from  tf.contrib.rnn import core_rnn_cell
 from tensorflow.contrib import rnn
-print tf.__version__
-class video_caption:
+import fire
+from elapsedtimer import ElapsedTimer
+from pathlib import Path
+print('tensorflow version:',tf.__version__)
+
+'''
+This takes the CNN features of a video frames and passes it through Back to Back LSTMs(Sequence to Sequence
+Model) to generate the Caption for the Video
+
+ path_prj - Project directory.
+ feat_dir - Subdirectory containing the CNN features .. absolute path /path_prj/feat_dir/
+ cnn_feat_dim - Dimension of the feature vector from CNN for each image frame 
+ video_steps -  No of image frames from each video. 
+ out_steps  - Sequence length for the text caption. The output text sequence would be contained in 2o words.
+ learning rate - training hyper parameter
+ epoch     - Traing epochs
+ model_path - Absolute Path to save the model 
+ mode - train/inference 
+
+'''
+
+class VideoCaptioning:
     
     
-    def __init__(self,cnn_feat_dim,h_dim,batch_size,lstm_steps,video_steps,out_steps,learning_rate,epochs,frame_step):
+    def __init__(self,path_prj,caption_file,feat_dir,
+                 cnn_feat_dim=4096,h_dim=512,
+                 lstm_steps=80,video_steps=80,
+                 out_steps=20, frame_step=80,
+                 batch_size=8,learning_rate=1e-4,
+                 epochs=100,model_path=None,
+                 mode='train'):
+
         self.dim_image = cnn_feat_dim
         self.dim_hidden = h_dim
         self.batch_size = batch_size
         self.lstm_steps = lstm_steps
         self.video_lstm_step=video_steps
         self.caption_lstm_step=out_steps
-        self.bias_init_vector=None
-        self.path_prj = '/home/santanu/Downloads/Video Captioning/' 
-        self.train_text_path = self.path_prj + "video_corpus.csv"
-        self.train_feat_path = self.path_prj + "rgb_feats/"
-
-        self.test_text_path = self.path_prj + "video_corpus_test.csv"
-        self.test_feat_path = self.path_prj + "rgb_feats/"
+        self.path_prj = Path(path_prj)
+        self.mode = mode
+        if mode == 'train':
+            self.train_text_path = self.path_prj / caption_file
+            self.train_feat_path = self.path_prj / feat_dir
+        else:
+            self.test_text_path = self.path_prj / caption_file
+            self.test_feat_path = self.path_prj / feat_dir
         self.learning_rate = learning_rate
         self.epochs = epochs
         self.frame_step = frame_step
+        self.model_path = model_path
 
     def build_model(self):
-        with tf.device("/cpu:0"):
+
+        # Defining the weights associated with the Network
+        with tf.device('/cpu:0'): 
             self.word_emb = tf.Variable(tf.random_uniform([self.n_words, self.dim_hidden], -0.1, 0.1), name='word_emb')
 
-
-         #   self.lstm1 = rnn.BasicLSTMCell(self.dim_hidden, state_is_tuple=False)
-         #   self.lstm2 = rnn.BasicLSTMCell(self.dim_hidden, state_is_tuple=False)
-            self.lstm1 = tf.nn.rnn_cell.BasicLSTMCell(self.dim_hidden, state_is_tuple=False)
-	    self.lstm2 = tf.nn.rnn_cell.BasicLSTMCell(self.dim_hidden, state_is_tuple=False)
-  
-
-            self.encode_W = tf.Variable( tf.random_uniform([self.dim_image,self.dim_hidden], -0.1, 0.1), name='encode_W')
-            self.encode_b = tf.Variable( tf.zeros([self.dim_hidden]), name='encode_b')
-
-            self.word_emb_W = tf.Variable(tf.random_uniform([self.dim_hidden,self.n_words], -0.1,0.1), name='word_emb_W')
-            if self.bias_init_vector is not None:
-                self.word_emb_b = tf.Variable(self.bias_init_vector.astype(np.float32), name='word_emb_b')
-            else:
-                self.word_emb_b = tf.Variable(tf.zeros([self.n_words]), name='word_emb_b')
-
+        self.lstm1 = tf.nn.rnn_cell.BasicLSTMCell(self.dim_hidden, state_is_tuple=False)
+        self.lstm2 = tf.nn.rnn_cell.BasicLSTMCell(self.dim_hidden, state_is_tuple=False)
+        self.encode_W = tf.Variable( tf.random_uniform([self.dim_image,self.dim_hidden], -0.1, 0.1), name='encode_W')
+        self.encode_b = tf.Variable( tf.zeros([self.dim_hidden]), name='encode_b')
+        
+        self.word_emb_W = tf.Variable(tf.random_uniform([self.dim_hidden,self.n_words], -0.1,0.1), name='word_emb_W')
+        self.word_emb_b = tf.Variable(tf.zeros([self.n_words]), name='word_emb_b')
+        
+        # Placeholders 
         video = tf.placeholder(tf.float32, [self.batch_size, self.video_lstm_step, self.dim_image])
         video_mask = tf.placeholder(tf.float32, [self.batch_size, self.video_lstm_step])
 
@@ -62,7 +85,7 @@ class video_caption:
         caption_mask = tf.placeholder(tf.float32, [self.batch_size, self.caption_lstm_step+1])
 
         video_flat = tf.reshape(video, [-1, self.dim_image])
-        image_emb = tf.nn.xw_plus_b( video_flat, self.encode_W,self.encode_b ) # (batch_size*n_lstm_steps, dim_hidden)
+        image_emb = tf.nn.xw_plus_b( video_flat, self.encode_W,self.encode_b )         
         image_emb = tf.reshape(image_emb, [self.batch_size, self.lstm_steps, self.dim_hidden])
 
         state1 = tf.zeros([self.batch_size, self.lstm1.state_size])
@@ -72,7 +95,7 @@ class video_caption:
         probs = []
         loss = 0.0
 
-        ##############################  Encoding Stage ##################################
+        #  Encoding Stage 
         for i in range(0, self.video_lstm_step):
             if i > 0:
                 tf.get_variable_scope().reuse_variables()
@@ -81,13 +104,11 @@ class video_caption:
                 output1, state1 = self.lstm1(image_emb[:,i,:], state1)
 
             with tf.variable_scope("LSTM2"):
-                output2, state2 = self.lstm2(tf.concat(1, [padding, output1]), state2)
+                output2, state2 = self.lstm2(tf.concat([padding, output1],1), state2)
 
-        ############################# Decoding Stage ######################################
-        for i in range(0, self.caption_lstm_step): ## Phase 2 => only generate captions
-            #if i == 0:
-            #    current_embed = tf.zeros([self.batch_size, self.dim_hidden])
-            #else:
+        #  Decoding Stage  to generate Captions 
+        for i in range(0, self.caption_lstm_step):
+
             with tf.device("/cpu:0"):
                 current_embed = tf.nn.embedding_lookup(self.word_emb, caption[:, i])
 
@@ -97,45 +118,40 @@ class video_caption:
                 output1, state1 = self.lstm1(padding, state1)
 
             with tf.variable_scope("LSTM2"):
-                output2, state2 = self.lstm2(tf.concat(1, [current_embed, output1]), state2)
+                output2, state2 = self.lstm2(tf.concat([current_embed, output1],1), state2)
 
             labels = tf.expand_dims(caption[:, i+1], 1)
             indices = tf.expand_dims(tf.range(0, self.batch_size, 1), 1)
-            concated = tf.concat(1, [indices, labels])
-            onehot_labels = tf.sparse_to_dense(concated, tf.pack([self.batch_size, self.n_words]), 1.0, 0.0)
+            concated = tf.concat([indices, labels],1)
+            onehot_labels = tf.sparse_to_dense(concated, tf.stack([self.batch_size, self.n_words]), 1.0, 0.0)
 
             logit_words = tf.nn.xw_plus_b(output2, self.word_emb_W, self.word_emb_b)
-            cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logit_words, onehot_labels)
+        # Computing the loss     
+            cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=logit_words,labels=onehot_labels)
             cross_entropy = cross_entropy * caption_mask[:,i]
             probs.append(logit_words)
 
             current_loss = tf.reduce_sum(cross_entropy)/self.batch_size
             loss = loss + current_loss
+        with tf.variable_scope(tf.get_variable_scope(),reuse=tf.AUTO_REUSE):
+            train_op = tf.train.AdamOptimizer(self.learning_rate).minimize(loss)    
 
-        return loss, video, video_mask, caption, caption_mask, probs
+        return loss, video, video_mask, caption, caption_mask, probs,train_op
 
 
     def build_generator(self):
-        with tf.device("/cpu:0"):
+        with tf.device('/cpu:0'):
             self.word_emb = tf.Variable(tf.random_uniform([self.n_words, self.dim_hidden], -0.1, 0.1), name='word_emb')
 
 
-         #   self.lstm1 = rnn.BasicLSTMCell(self.dim_hidden, state_is_tuple=False)
-         #   self.lstm2 = rnn.BasicLSTMCell(self.dim_hidden, state_is_tuple=False)
-            self.lstm1 = tf.nn.rnn_cell.BasicLSTMCell(self.dim_hidden, state_is_tuple=False)
-            self.lstm2 = tf.nn.rnn_cell.BasicLSTMCell(self.dim_hidden, state_is_tuple=False)
+        self.lstm1 = tf.nn.rnn_cell.BasicLSTMCell(self.dim_hidden, state_is_tuple=False)
+        self.lstm2 = tf.nn.rnn_cell.BasicLSTMCell(self.dim_hidden, state_is_tuple=False)
 
+        self.encode_W = tf.Variable( tf.random_uniform([self.dim_image,self.dim_hidden], -0.1, 0.1), name='encode_W')
+        self.encode_b = tf.Variable( tf.zeros([self.dim_hidden]), name='encode_b')
 
-            self.encode_W = tf.Variable( tf.random_uniform([self.dim_image,self.dim_hidden], -0.1, 0.1), name='encode_W')
-            self.encode_b = tf.Variable( tf.zeros([self.dim_hidden]), name='encode_b')
-
-            self.word_emb_W = tf.Variable(tf.random_uniform([self.dim_hidden,self.n_words], -0.1,0.1), name='word_emb_W')
-            if self.bias_init_vector is not None:
-                self.word_emb_b = tf.Variable(self.bias_init_vector.astype(np.float32), name='word_emb_b')
-            else:
-                self.word_emb_b = tf.Variable(tf.zeros([self.n_words]), name='word_emb_b')
-
-
+        self.word_emb_W = tf.Variable(tf.random_uniform([self.dim_hidden,self.n_words], -0.1,0.1), name='word_emb_W')
+        self.word_emb_b = tf.Variable(tf.zeros([self.n_words]), name='word_emb_b')
         video = tf.placeholder(tf.float32, [1, self.video_lstm_step, self.dim_image])
         video_mask = tf.placeholder(tf.float32, [1, self.video_lstm_step])
 
@@ -160,7 +176,7 @@ class video_caption:
                 output1, state1 = self.lstm1(image_emb[:, i, :], state1)
 
             with tf.variable_scope("LSTM2"):
-                output2, state2 = self.lstm2(tf.concat(1, [padding, output1]), state2)
+                output2, state2 = self.lstm2(tf.concat([padding, output1],1), state2)
 
         for i in range(0, self.caption_lstm_step):
             tf.get_variable_scope().reuse_variables()
@@ -173,7 +189,7 @@ class video_caption:
                 output1, state1 = self.lstm1(padding, state1)
 
             with tf.variable_scope("LSTM2"):
-                output2, state2 = self.lstm2(tf.concat(1, [current_embed, output1]), state2)
+                output2, state2 = self.lstm2(tf.concat([current_embed, output1],1), state2)
 
             logit_words = tf.nn.xw_plus_b( output2, self.word_emb_W, self.word_emb_b)
             max_prob_index = tf.argmax(logit_words, 1)[0]
@@ -189,7 +205,7 @@ class video_caption:
         return video, video_mask, generated_words, probs, embeds
 
 
-    def get_train_data(self,text_path,feat_path):
+    def get_data(self,text_path,feat_path):
         text_data = pd.read_csv(text_path, sep=',')
         text_data = text_data[text_data['Language'] == 'English']
         text_data['video_path'] = text_data.apply(lambda row: row['VideoID']+'_'+str(int(row['Start']))+'_'+str(int(row['End']))+'.npy', axis=1)
@@ -198,10 +214,22 @@ class video_caption:
         text_data = text_data[text_data['Description'].map(lambda x: isinstance(x, str))]
         
         unique_filenames = sorted(text_data['video_path'].unique())
-        train_data = text_data[text_data['video_path'].map(lambda x: x in unique_filenames)]
-        return train_data
-        
-    
+        data = text_data[text_data['video_path'].map(lambda x: x in unique_filenames)]
+        return data
+
+    def train_test_split(self,data,test_frac=0.2):
+        indices = np.arange(len(data))
+        np.random.shuffle(indices)
+        train_indices_rec = int((1 - test_frac)*len(data))
+        indices_train = indices[:train_indices_rec]
+        indices_test = indices[train_indices_rec:]
+        data_train, data_test = data.iloc[indices_train],data.iloc[indices_test]
+        print(data_train.head())
+        print(data_test.head())
+        data_train.reset_index(inplace=True)
+        data_test.reset_index(inplace=True)
+        return data_train,data_test
+
     def get_test_data(self,text_path,feat_path):
         text_data = pd.read_csv(text_path, sep=',')
         text_data = text_data[text_data['Language'] == 'English']
@@ -212,9 +240,8 @@ class video_caption:
     
         unique_filenames = sorted(text_data['video_path'].unique())
         test_data = text_data[text_data['video_path'].map(lambda x: x in unique_filenames)]
-        return test_data
+        return test_data       
         
-    
     def create_word_dict(self,sentence_iterator, word_count_threshold=5):
         
         word_counts = {}
@@ -247,52 +274,48 @@ class video_caption:
         word_counts['<eos>'] = sent_cnt
         word_counts['<unk>'] = sent_cnt
     
-        bias_init_vector = np.array([1.0 * word_counts[ idx2word[i] ] for i in idx2word])
-        bias_init_vector /= np.sum(bias_init_vector) # normalize to frequencies
-        bias_init_vector = np.log(bias_init_vector)
-        bias_init_vector -= np.max(bias_init_vector) # shift to nice numeric range
-        return word2idx,idx2word,bias_init_vector
+        return word2idx,idx2word
         
-        
-    
         
         
     
     def train(self):
-        self.train_data = self.get_train_data(self.train_text_path,self.train_feat_path)
+        data = self.get_data(self.train_text_path,self.train_feat_path)
+        self.train_data,self.test_data = self.train_test_split(data,test_frac=0.2)
+        self.train_data.to_csv(f'{self.path_prj}/train.csv',index=False)
+        self.test_data.to_csv(f'{self.path_prj}/test.csv',index=False)
+
+        print(f'Processed train file written to {self.path_prj}/train_corpus.csv')
+        print(f'Processed test file written to {self.path_prj}/test_corpus.csv')
+                
+
         train_captions = self.train_data['Description'].values
-        self.test_data = self.get_test_data(self.test_text_path,self.test_feat_path)
         test_captions = self.test_data['Description'].values
     
-        captions_list = list(train_captions) + list(test_captions)
+        captions_list = list(train_captions) 
         captions = np.asarray(captions_list, dtype=np.object)
     
-        captions = map(lambda x: x.replace('.', ''), captions)
-        captions = map(lambda x: x.replace(',', ''), captions)
-        captions = map(lambda x: x.replace('"', ''), captions)
-        captions = map(lambda x: x.replace('\n', ''), captions)
-        captions = map(lambda x: x.replace('?', ''), captions)
-        captions = map(lambda x: x.replace('!', ''), captions)
-        captions = map(lambda x: x.replace('\\', ''), captions)
-        captions = map(lambda x: x.replace('/', ''), captions)
+        captions = list(map(lambda x: x.replace('.', ''), captions))
+        captions = list(map(lambda x: x.replace(',', ''), captions))
+        captions = list(map(lambda x: x.replace('"', ''), captions))
+        captions = list(map(lambda x: x.replace('\n', ''), captions))
+        captions = list(map(lambda x: x.replace('?', ''), captions))
+        captions = list(map(lambda x: x.replace('!', ''), captions))
+        captions = list(map(lambda x: x.replace('\\', ''), captions))
+        captions = list(map(lambda x: x.replace('/', ''), captions))
     
-        self.word2idx,self.idx2word,self.bias_init_vector = self.create_word_dict(captions, word_count_threshold=0)
+        self.word2idx,self.idx2word = self.create_word_dict(captions, word_count_threshold=0)
         
-        np.save(self.path_prj + "word2idx",self.word2idx)
-        np.save(self.path_prj + "idx2word" ,self.idx2word)
-        np.save(self.path_prj + "bias_init_vector",self.bias_init_vector)
+        np.save(self.path_prj/ "word2idx",self.word2idx)
+        np.save(self.path_prj/ "idx2word" ,self.idx2word)
         self.n_words = len(self.word2idx)
     
-        tf_loss, tf_video,tf_video_mask,tf_caption,tf_caption_mask, tf_probs = self.build_model()
+        tf_loss, tf_video,tf_video_mask,tf_caption,tf_caption_mask, tf_probs,train_op= self.build_model()
         sess = tf.InteractiveSession()
         
         saver = tf.train.Saver(max_to_keep=100, write_version=1)
-        train_op = tf.train.AdamOptimizer(self.learning_rate).minimize(tf_loss)
         tf.global_variables_initializer().run()
     
-        #new_saver = tf.train.Saver()
-        #new_saver = tf.train.import_meta_graph('./rgb_models/model-1000.meta')
-        #new_saver.restore(sess, tf.train.latest_checkpoint('./models/'))
     
         loss_out = open('loss.txt', 'w')
         val_loss = []
@@ -300,16 +323,18 @@ class video_caption:
         for epoch in range(0,self.epochs):
             val_loss_epoch = []
     
-            index = list(self.train_data.index)
+            index = np.arange(len(self.train_data))
+
+            self.train_data.reset_index()
             np.random.shuffle(index)
-            self.train_data = self.train_data.ix[index]
+            self.train_data = self.train_data.loc[index]
     
-            current_train_data = self.train_data.groupby('video_path').apply(lambda x: x.irow(np.random.choice(len(x))))
-            current_train_data = current_train_data.reset_index(drop=True)
+            current_train_data = self.train_data.groupby(['video_path']).first().reset_index()
+
     
             for start, end in zip(
-                    range(0, len(current_train_data),batch_size),
-                    range(batch_size,len(current_train_data),batch_size)):
+                    range(0, len(current_train_data),self.batch_size),
+                    range(self.batch_size,len(current_train_data),self.batch_size)):
     
                 start_time = time.time()
     
@@ -317,7 +342,8 @@ class video_caption:
                 current_videos = current_batch['video_path'].values
     
                 current_feats = np.zeros((self.batch_size, self.video_lstm_step,self.dim_image))
-                current_feats_vals = map(lambda vid: np.load(vid),current_videos)
+                current_feats_vals = list(map(lambda vid: np.load(vid),current_videos))
+                current_feats_vals = np.array(current_feats_vals) 
     
                 current_video_masks = np.zeros((self.batch_size,self.video_lstm_step))
     
@@ -326,15 +352,16 @@ class video_caption:
                     current_video_masks[ind][:len(current_feats_vals[ind])] = 1
     
                 current_captions = current_batch['Description'].values
-                current_captions = map(lambda x: '<bos> ' + x, current_captions)
-                current_captions = map(lambda x: x.replace('.', ''), current_captions)
-                current_captions = map(lambda x: x.replace(',', ''), current_captions)
-                current_captions = map(lambda x: x.replace('"', ''), current_captions)
-                current_captions = map(lambda x: x.replace('\n', ''), current_captions)
-                current_captions = map(lambda x: x.replace('?', ''), current_captions)
-                current_captions = map(lambda x: x.replace('!', ''), current_captions)
-                current_captions = map(lambda x: x.replace('\\', ''), current_captions)
-                current_captions = map(lambda x: x.replace('/', ''), current_captions)
+                current_captions = list(map(lambda x: '<bos> ' + x, current_captions))
+                current_captions = list(map(lambda x: x.replace('.', ''), current_captions))
+                current_captions = list(map(lambda x: x.replace(',', ''), current_captions))
+                current_captions = list(map(lambda x: x.replace('"', ''), current_captions))
+                current_captions = list(map(lambda x: x.replace('\n', ''), current_captions))
+                current_captions = list(map(lambda x: x.replace('?', ''), current_captions))
+                current_captions = list(map(lambda x: x.replace('!', ''), current_captions))
+                current_captions = list(map(lambda x: x.replace('\\', ''), current_captions))
+                current_captions = list(map(lambda x: x.replace('/', ''), current_captions))
+
     
                 for idx, each_cap in enumerate(current_captions):
                     word = each_cap.lower().split(' ')
@@ -359,7 +386,7 @@ class video_caption:
                 current_caption_matrix = sequence.pad_sequences(current_caption_ind, padding='post', maxlen=self.caption_lstm_step)
                 current_caption_matrix = np.hstack( [current_caption_matrix, np.zeros( [len(current_caption_matrix), 1] ) ] ).astype(int)
                 current_caption_masks = np.zeros( (current_caption_matrix.shape[0], current_caption_matrix.shape[1]) )
-                nonzeros = np.array( map(lambda x: (x != 0).sum() + 1, current_caption_matrix ) )
+                nonzeros = np.array( list(map(lambda x: (x != 0).sum() + 1, current_caption_matrix ) ))
     
                 for ind, row in enumerate(current_caption_masks):
                     row[:nonzeros[ind]] = 1
@@ -379,54 +406,46 @@ class video_caption:
                             })
                 val_loss_epoch.append(loss_val)
     
-                print 'idx: ', start, " Epoch: ", epoch, " loss: ", loss_val, ' Elapsed time: ', str((time.time() - start_time))
+                print('Batch starting index: ', start, " Epoch: ", epoch, " loss: ", loss_val, ' Elapsed time: ', str((time.time() - start_time)))
                 loss_out.write('epoch ' + str(epoch) + ' loss ' + str(loss_val) + '\n')
     
             # draw loss curve every epoch
             val_loss.append(np.mean(val_loss_epoch))
-            plt_save_dir = self.path_prj + "loss_imgs"
+            plt_save_dir = self.path_prj / "loss_imgs"
             plt_save_img_name = str(epoch) + '.png'
             plt.plot(range(len(val_loss)),val_loss, color='g')
             plt.grid(True)
             plt.savefig(os.path.join(plt_save_dir, plt_save_img_name))
     
-            if np.mod(epoch, 10) == 0:
-                print "Epoch ", epoch, " is done. Saving the model ..."
+            if np.mod(epoch,9) == 0:
+                print ("Epoch ", epoch, " is done. Saving the model ...")
                 saver.save(sess, os.path.join(self.path_prj, 'model'), global_step=epoch)
     
         loss_out.close()
         
         
     
-    def inference_(self,model_path='./models/model-100'):
+    def inference(self):
         self.test_data = self.get_test_data(self.test_text_path,self.test_feat_path)
         test_videos = self.test_data['video_path'].unique()
     
-        self.idx2word = pd.Series(np.load(self.path_prj + "idx2word.npy").tolist())
+        self.idx2word = pd.Series(np.load(self.path_prj / "idx2word.npy").tolist())
     
-        self.bias_init_vector = np.load(self.path_prj + "bias_init_vector.npy")
-    
-       
         self.n_words = len(self.idx2word)
         video_tf, video_mask_tf, caption_tf, probs_tf, last_embed_tf = self.build_generator()
     
         sess = tf.InteractiveSession()
     
         saver = tf.train.Saver()
-        saver.restore(sess,model_path)
+        saver.restore(sess,self.model_path)
     
-        test_output_txt_fd = open('S2VT_results.txt', 'w')
+        f = open(f'{self.path_prj}/video_captioning_results.txt', 'w')
         for idx, video_feat_path in enumerate(test_videos):
-            print idx,video_feat_path
             video_feat = np.load(video_feat_path)[None,...]
             if video_feat.shape[1] == self.frame_step:
                 video_mask = np.ones((video_feat.shape[0], video_feat.shape[1]))
             else:
                 continue
-                #shape_templete = np.zeros(shape=(1, n_frame_step, 4096), dtype=float )
-                #shape_templete[:video_feat.shape[0], :video_feat.shape[1], :video_feat.shape[2]] = video_feat
-                #video_feat = shape_templete
-                #video_mask = np.ones((video_feat.shape[0], n_frame_step))
     
             gen_word_idx = sess.run(caption_tf, feed_dict={video_tf:video_feat, video_mask_tf:video_mask})
             gen_words = self.idx2word[gen_word_idx]
@@ -437,33 +456,21 @@ class video_caption:
             gen_sent = ' '.join(gen_words)
             gen_sent = gen_sent.replace('<bos> ', '')
             gen_sent = gen_sent.replace(' <eos>', '')
-            print gen_sent,'\n'
-            test_output_txt_fd.write(video_feat_path + '\n')
-            test_output_txt_fd.write(gen_sent + '\n\n')
-        
+            print(f'Video path {video_feat_path} : Generated Caption {gen_sent}')
+            print(gen_sent,'\n')
+            f.write(video_feat_path + '\n')
+            f.write(gen_sent + '\n\n')
 
-if __name__ == '__main__':
-    
-    cnn_feat_dim = 4096
-    h_dim = 512  
-    batch_size = 8
-    video_steps=80
-    lstm_steps = 80 
-    out_steps=20
-    bias_init_vector=None
-    learning_rate = 1e-4
-    epochs = 100
-    frame_step = 80
-        
-    if sys.argv[1] == 'train':
-        model = video_caption(cnn_feat_dim,h_dim,batch_size,lstm_steps,video_steps,out_steps,learning_rate,epochs,frame_step)
-        model.train()
-    
-    if sys.argv[1] == 'test':
-        model = video_caption(cnn_feat_dim,h_dim,batch_size,lstm_steps,video_steps,out_steps,learning_rate,epochs,frame_step)
-        model.inference_(model_path='/home/santanu/Downloads/Video Captioning/model-90')
+    def process_main(self):
+        if self.mode == 'train':
+            self.train()
+        else:
+            self.inference()
         
       
-        
+if __name__ == '__main__':
+    with ElapsedTimer('Video Captioning'):
+    
+        fire.Fire(VideoCaptioning)
         
 

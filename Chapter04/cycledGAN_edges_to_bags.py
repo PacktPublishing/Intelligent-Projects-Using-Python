@@ -11,6 +11,8 @@ import time
 import glob
 from scipy.misc import imread,imresize,imsave
 import copy
+import fire
+from elapsedtimer import ElapsedTimer
 
 
 def load_train_data(image_path, load_size=64,fine_size=64, is_testing=False):
@@ -81,13 +83,14 @@ class ImagePool(object):
             self.images[idx][1] = image[1]
             return [tmp1, tmp2]
         else:
-	    return image
+	        return image
 
 
 class DiscoGAN():
     
-    def __init__(self):
+    def __init__(self,dataset_dir,epochs=200):
         # Input shape
+        self.dataset_dir = dataset_dir
         self.lambda_l2 = 1.0
         self.image_size = 64
         self.input_dim = 3
@@ -99,9 +102,9 @@ class DiscoGAN():
         self.output_c_dim = 3
         self.l_r = 2e-4
         self.beta1 = 0.5
-	self.beta2 = 0.99
+        self.beta2 = 0.99
         self.weight_decay = 0.00001
-        self.epoch = 200
+        self.epoch = epochs
         self.train_size = 10000
         self.epoch_step = 10
         self.load_size = 64
@@ -127,7 +130,7 @@ class DiscoGAN():
             def lrelu(x, alpha,name='lrelu'):
                 with tf.variable_scope(name):
                     return tf.nn.relu(x) - alpha * tf.nn.relu(-x)
-                
+                    
             def instance_norm(x,name='instance_norm'):
 
                 with tf.variable_scope(name):
@@ -163,7 +166,7 @@ class DiscoGAN():
                     return d
     
             #def common_deconv2d(layer_input,skip_input, filters,f_size=4,stride=2,dropout_rate=0,name='common_deconv2d'):
-	    def common_deconv2d(layer_input,filters,f_size=4,stride=2,padding='SAME',dropout_rate=0,name='common_deconv2d'):
+            def common_deconv2d(layer_input,filters,f_size=4,stride=2,padding='SAME',dropout_rate=0,name='common_deconv2d'):
                 """Layers used during upsampling"""
                 with tf.variable_scope(name):
                     if reuse:
@@ -280,7 +283,7 @@ class DiscoGAN():
         
         def squared_loss(y_pred,labels):
             return tf.reduce_mean((y_pred - labels)**2)
-
+            
         def abs_loss(y_pred,labels):
             return tf.reduce_mean(tf.abs(y_pred - labels))  
 
@@ -364,7 +367,7 @@ class DiscoGAN():
         self.init_op = tf.global_variables_initializer()
         self.sess = tf.Session()
         self.sess.run(self.init_op)
-        self.dataset_dir = '/home/santanu/Downloads/DiscoGAN/edges2handbags/train/'
+        #self.dataset_dir = '/home/santanu/Downloads/DiscoGAN/edges2handbags/train/'
         self.writer = tf.summary.FileWriter("./logs", self.sess.graph)
         count = 1
         start_time = time.time()
@@ -470,12 +473,13 @@ class DiscoGAN():
         save_images(fake_B, [self.batch_size, 1],
                     './{}/B_{:02d}_{:04d}.jpg'.format(sample_dir, epoch, id_))
 
+    def process_main(self):
+        self.build_network()
+        self.train_network()
+
 
 if __name__ == '__main__':
-    gan = DiscoGAN()
-    gan.build_network()
-   
-    gan.train_network()
-    
+    with ElapsedTimer('DiscoGAN'):
+        fire.Fire(DiscoGAN)
     
     

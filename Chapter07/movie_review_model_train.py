@@ -10,14 +10,20 @@ import numpy as np
 import os 
 import keras 
 import pickle
+import fire
+from elapsedtimer import ElapsedTimer
+
+'''
+Train Model for Movie Review
+'''
 
 class Review_sentiment:
     
-    def __init__(self):
+    def __init__(self,path,epochs):
         self.batch_size = 250
         self.train_to_val_ratio = 5.0
         self.batch_size_val =  int(self.batch_size/self.train_to_val_ratio)
-        self.epochs = 10
+        self.epochs = epochs
         self.hidden_states = 100
         self.embedding_dim = 100
         self.learning_rate =1e-4
@@ -26,7 +32,8 @@ class Review_sentiment:
         self.sentence_length = 1000
         self.cell_layer_size = 1
         self.lambda1 = 0.01  
-        self.path = '/home/santanu/Downloads/Mobile_App/' 
+        #self.path = '/home/santanu/Downloads/Mobile_App/' 
+        self.path = path
         self.X_train = np.load(self.path + "aclImdb/X_train.npy") 
         self.y_train = np.load(self.path + "aclImdb/y_train.npy") 
         self.y_train = np.reshape(self.y_train,(-1,1))
@@ -41,11 +48,11 @@ class Review_sentiment:
         print (np.shape(self.X_test),np.shape(self.y_test))
         print ('no of positive class in train:',np.sum(self.y_train) )
         print ('no of positive class in test:',np.sum(self.y_val) )   
-        self.path_tokenizer = '/home/santanu/Downloads/Mobile_App/aclImdb/tokenizer.pickle'
+        self.path_tokenizer = self.path + 'aclImdb/tokenizer.pickle'
         with open(self.path_tokenizer, 'rb') as handle:
             tokenizer = pickle.load(handle)
 
-        self.EMBEDDING_FILE = '/home/santanu/Downloads/Mobile_App/glove.6B.100d.txt'
+        self.EMBEDDING_FILE = path + 'glove.6B.100d.txt'
         def get_coefs(word, *arr): return word, np.asarray(arr, dtype='float32')
         embeddings_index = dict(get_coefs(*o.strip().split()) for o in open(self.EMBEDDING_FILE))  
         word_index = tokenizer.word_index
@@ -65,13 +72,10 @@ class Review_sentiment:
             self.X = tf.placeholder(shape=[None, self.sentence_length],dtype=tf.int32,name="X")
             print (self.X)
             self.y = tf.placeholder(shape=[None,1], dtype=tf.float32,name="y")
-            #self.dropout = tf.placeholder_with_default(1.,None,name="dropout")
             self.emd_placeholder = tf.placeholder(tf.float32,shape=[self.n_words,self.embedding_dim]) 
 
         with tf.variable_scope('embedding'):
             # create embedding variable
-           # self.emb_W = tf.Variable(initial_value=self.embedding.get_w(), name="emb_W", trainable=self.embedding.is_trainable(),
-           #                     dtype=tf.float32)
             self.emb_W =tf.get_variable('word_embeddings',[self.n_words, self.embedding_dim],initializer=tf.random_uniform_initializer(-1, 1, 0),trainable=True,dtype=tf.float32)
             self.assign_ops = tf.assign(self.emb_W,self.emd_placeholder)
             
@@ -81,32 +85,20 @@ class Review_sentiment:
             self.embedding_input = tf.unstack(self.embedding_input,self.sentence_length,1) 
             #rint( self.embedding_input)
 
-        # define the GRU cell
+        # define the LSTM cell
         with tf.variable_scope('LSTM_cell'):
             self.cell = tf.nn.rnn_cell.BasicLSTMCell(self.hidden_states)
 
         
-        # define the RNN operation
+        # define the LSTM operation
         with tf.variable_scope('ops'):
             self.output, self.state = tf.nn.static_rnn(self.cell,self.embedding_input,dtype=tf.float32)
-          #  print self.state 
-        print ('state')
-
-        print(self.output)
-        print(self.state)            
-        
-       # with tf.variable_scope('dropout'):
-       #     self.state = tf.nn.dropout(self.state,self.dropout)
-       #     print self.state
-
+       
+       
         with tf.variable_scope('classifier'):
             self.w = tf.get_variable(name="W", shape=[self.hidden_states,1],dtype=tf.float32)
             self.b = tf.get_variable(name="b", shape=[1], dtype=tf.float32)
         self.l2_loss = tf.nn.l2_loss(self.w,name="l2_loss")
-          #  print self.output
-          #  print self.state
-          #  print self.w
-          #  print self.b
         self.scores = tf.nn.xw_plus_b(self.output[-1],self.w,self.b,name="logits")
         self.prediction_probability = tf.nn.sigmoid(self.scores,name='positive_sentiment_probability')
         print (self.prediction_probability)
@@ -158,7 +150,7 @@ class Review_sentiment:
         builder.save() 
         tflite_model  = tf.contrib.lite.toco_convert(sess.graph_def,[self.X[0]],[self.prediction_probability[0]],
 				inference_type=1, input_format=1,output_format=2, quantized_input_stats=None, drop_control_dependency=True)
-        open(path + "converted_model.tflite", "wb").write(tflite_model) 
+        open(self.path + "converted_model.tflite", "wb").write(tflite_model) 
         
     def _train(self):
         
@@ -180,17 +172,12 @@ class Review_sentiment:
                 for batch in range(self.num_batches):
                     X_batch,y_batch = next(gen_batch) 
                     X_batch_val,y_batch_val = next(gen_batch_val)
-       #            print (y_batch )
-       #            print (y_batch_val) 
-                    
                     sess.run(self.optimizer,feed_dict={self.X:X_batch,self.y:y_batch})
                     c,a  = sess.run([self.loss,self.accuracy],feed_dict={self.X:X_batch,self.y:y_batch})
                     print(" Epoch=",epoch," Batch=",batch," Training Loss: ","{:.9f}".format(c), " Training Accuracy=", "{:.9f}".format(a))
                     c1,a1 = sess.run([self.loss,self.accuracy],feed_dict={self.X:X_batch_val,self.y:y_batch_val})
                     print(" Epoch=",epoch," Validation Loss: ","{:.9f}".format(c1), " Validation Accuracy=", "{:.9f}".format(a1))
                 results = sess.run(self.prediction_probability,feed_dict={self.X:X_batch_val})
-                #emd_re = sess.run(self.emb_W)
-                #np.save(self.path + 'emb',emd_re)
                 print(results)
 
                 if epoch % self.checkpoint_step == 0:
@@ -199,13 +186,17 @@ class Review_sentiment:
             self.saver.save(sess,self.path + 'model_ckpt')
             results = sess.run(self.prediction_probability,feed_dict={self.X:X_batch_val})
             print(results)
-       #    self.export_model(sess,self.path + 'model')
             
                 
                 
+    def process_main(self):
+        self._train()
+
 if __name__ == '__main__':
-    model = Review_sentiment()
-    model._train()
+    with ElapsedTimer('Model train'):
+        fire.Fire(Review_sentiment)
+
+
     
                 
                     

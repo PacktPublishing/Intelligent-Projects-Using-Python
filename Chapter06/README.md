@@ -1,24 +1,24 @@
-#Chapter06: The Intelligent Recommender System
+# Chapter06: The Intelligent Recommender System
 With the huge amount of digital information available on the internet, it becomes a
 challenge for users to access items efficiently. Recommender systems are information
 filtering systems that deal with the problem of digital data overload to pull out items or
 information according to the user's preferences, interests, and behavior, inferred from
 previous activities.
 
-### Goal 
-[x] Latent factorization-based collaborative filtering
-[x] Using deep learning for latent factor collaborative filtering
-[x] Using the restricted Boltzmann machine for building recommendation systems
-[x] Learn the technical knowhows
+#### Goal 
+- [x] Latent factorization-based collaborative filtering
+- [x] Using deep learning for latent factor collaborative filtering
+- [x] Using the restricted Boltzmann machine for building recommendation systems
+- [x] Learn the technical knowhows
 
-###Dataset Link
+#### Dataset Link
 [Data] (https://grouplens.org/datasets/movielens/)
-[x] File name (100K Movie Lens)
+- [x] File name (100K Movie Lens)
 
 
 #### Notebook for Latent Factor Collaborative Filtering
 
-```bash```
+```bash
 
 Latent Factor Collaborative Filtering using Deep Learning.ipynb 
 
@@ -27,12 +27,13 @@ Latent Factor Collaborative Filtering using Deep Learning.ipynb
 #### Notebook for SVD++ method of Collaborative filtering
 
 
-```bash```
+```bash
 
 SVD++.ipynb
 
 ```
 #### Restricted Boltzmann machines for recommendation : Command to Preprocess Ratings
+
 ```bash
 
 python preprocess_ratings.py --path '/home/santanu/ML_DS_Catalog-/Collaborating Filtering/ml-100k/' --infile 'u.data'
@@ -58,7 +59,7 @@ python rbm.py main_process --mode test --train_file '/home/santanu/ML_DS_Catalog
 ```
 
 
-##These are sample commands and need to be changed accordingly based on data repositories,output directory,etc
+**These are sample commands and need to be changed accordingly based on data repositories,output directory,etc**
 
 
 

@@ -1,4 +1,4 @@
-#Chapter07: Mobile App for Movie Review Sentiment Analysis
+# Chapter07: Mobile App for Movie Review Sentiment Analysis
 In this modern age, sending data to AI-based applications in the cloud for inference is
 commonplace. For instance, a user can send an image taken on a mobile phone to
 the Amazon Rekognition API, and the service can tag the various objects, people, text,
@@ -11,19 +11,19 @@ such a Movie Review Sentiment Analysis Application deployed on the mobile itself
 runs locally on the mobile itself without the need to access the internet and hit a third party service. 
 
 
-### Goal 
-[x] To implement a MObile app end to end using Tensorflow capacities
-[x] Understand the technical knowhows of such an application
+#### Goal 
+- [x] To implement a MObile app end to end using Tensorflow capacities
+- [x] Understand the technical knowhows of such an application
 
 
-###Dataset Link
+#### Dataset Link
 [Data] (http://ai.stanford.edu/~amaas/data/sentiment/)
 
 
 
 #### LSTM model for Classification : Data Preprocessing 
 
-```bash```
+```bash
 
 python preprocess.py --path /home/santanu/Downloads/Mobile_App/aclImdb/
 
@@ -31,7 +31,7 @@ python preprocess.py --path /home/santanu/Downloads/Mobile_App/aclImdb/
 
 #### LSTM model for Classification : Model training
 
-```bash```
+```bash
 
 python movie_review_model_train.py process_main --path /home/santanu/Downloads/Mobile_App/ --epochs 2
 
@@ -56,10 +56,13 @@ python tokenizer_2_txt.py --path '/home/santanu/Downloads/Mobile_App/aclImdb/tok
 
 #### Code related to the APP
 
+```bash
+
 abc
 
+```
 
-##These are sample commands and need to be changed accordingly based on data repositories,output directory,etc
+**These are sample commands and need to be changed accordingly based on data repositories,output directory,etc**
 
 
 

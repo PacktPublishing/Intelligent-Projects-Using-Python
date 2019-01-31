@@ -238,16 +238,6 @@ class TransferLearning:
 			
 			if model == 'InceptionV3':
 				model_final = self.inception_pseudo(dim=224,freeze_layers=10,full_freeze='N')
-			
-			datagen = ImageDataGenerator(
-					horizontal_flip = True,
-					vertical_flip = True,
-					width_shift_range = 0.1,
-					height_shift_range = 0.1,
-					channel_shift_range=0,
-					zoom_range = 0.2,
-					rotation_range = 20)
-			  
 				
 			adam = optimizers.Adam(lr=lr, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
 			model_final.compile(optimizer=adam, loss=["mse"],metrics=['mse'])

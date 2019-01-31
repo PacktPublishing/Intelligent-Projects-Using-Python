@@ -1,4 +1,4 @@
-#Chapter02: Transfer Learning 
+###Chapter02: Transfer Learning 
 
 Transfer learning is the process of transferring the knowledge gained in one task in a
 specific domain to a related task in a similar domain. In the deep learning paradigm,

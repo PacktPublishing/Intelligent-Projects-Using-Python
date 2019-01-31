@@ -16,7 +16,7 @@ this chapter, we will use transfer learning to solve a healthcare problem.
 - [x] Look at the achitecture of Standard CNN architectures that can be used for Transfer Learning
 - [x] Be comfortable on various facets of performing Transfer learning 
 
-###Dataset Link
+### Dataset Link
 [Data] (https://www.kaggle.com/c/classroom-diabetic-retinopathy-detection-competition/data)
 
 #### Command to execute TransferLearning.py for Training and Holdout validation

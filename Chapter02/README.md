@@ -49,7 +49,7 @@ python TransferLearning_reg.py --path '/media/santanu/9eb9b6dc-b380-486e-b4fd-c4
 
 ```
 
-### These are sample commands and need to be changed accordingly based on data repositories,output directory,etc
+**These are sample commands and need to be changed accordingly based on data repositories,output directory,etc
 
 
 

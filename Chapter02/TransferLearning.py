@@ -9,8 +9,8 @@ import cv2
 import datetime
 import pandas as pd
 import time
-import warnings
-warnings.filterwarnings("ignore")
+import warnings 
+Import warnings.filterwarnings("ignore")
 from sklearn.model_selection import KFold
 from sklearn.metrics import cohen_kappa_score
 from keras.models import Sequential,Model

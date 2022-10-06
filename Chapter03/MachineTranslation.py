@@ -87,15 +87,15 @@ class MachineTranslation:
             print('Number of unique output tokens:', self.num_decoder_words)
             print('Max sequence length for inputs:', self.max_encoder_seq_length)
             print('Max sequence length for outputs:', self.max_decoder_seq_length)
-        
-        self.input_word_index = dict(
-            [(word, i) for i, word in enumerate(input_words)])
-        self.target_word_index = dict(
-            [(word, i) for i, word in enumerate(target_words)])
-        self.reverse_input_word_dict = dict(
-            (i, word) for word, i in self.input_word_index.items())
-        self.reverse_target_word_dict = dict(
-            (i, word) for word, i in self.target_word_index.items())
+
+        self.input_word_index = {
+            word: i for i, word in enumerate(input_words)}
+        self.target_word_index = {
+            word: i for i, word in enumerate(target_words)}
+        self.reverse_input_word_dict = {
+            i: word for word, i in self.input_word_index.items()}
+        self.reverse_target_word_dict = {
+            i: word for word, i in self.target_word_index.items()}
         
    
     def process_input(self,input_texts,target_texts=None,verbose=True):

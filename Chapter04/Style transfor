@@ -1,0 +1,42 @@
+
+import tensorflow as tf
+import tensorflow.contrib.slim as slim
+import numpy as np
+
+# Define VGG-19 architecture
+def vgg_19(inputs, reuse=False):
+    with tf.variable_scope("vgg_19", reuse=reuse):
+        net = slim.repeat(inputs, 2, slim.conv2d, 64, [3, 3], scope='conv1')
+        # Add more layers for VGG-19
+        # ...
+
+    return net
+
+# Calculate style loss
+def style_loss(style, generated):
+    style_gram = gram_matrix(style)
+    generated_gram = gram_matrix(generated)
+    loss = tf.reduce_mean(tf.square(style_gram - generated_gram))
+    return loss
+
+# Calculate content loss
+def content_loss(content, generated):
+    loss = tf.reduce_mean(tf.square(content - generated))
+    return loss
+
+# Calculate Gram matrix
+def gram_matrix(x):
+    x_shape = x.get_shape()
+    x = tf.reshape(x, [-1, x_shape[3]])
+    gram = tf.matmul(tf.transpose(x), x)
+    return gram
+
+# Example usage
+style_image = tf.placeholder(tf.float32, shape=(None, height, width, channels))
+content_image = tf.placeholder(tf.float32, shape=(None, height, width, channels))
+
+style_layers = vgg_19(style_image, reuse=False)
+content_layers = vgg_19(content_image, reuse=True)
+
+style_loss_value = style_loss(style_layers, generated_image)
+content_loss_value = content_loss(content_layers, generated_image)
